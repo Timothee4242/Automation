@@ -25,6 +25,10 @@ void setup(){
 
   udp.begin(4210);
   delay(500);
+
+  envoiHub("Hello");
+ // ESP.deepSleep(10e6);
+  delay(10000);
 }
 
 void loop() {
@@ -35,6 +39,20 @@ void loop() {
     Serial.println(packet);
     if (strcmp(packet, "led1 on")==0){digitalWrite(LED_BUILTIN, LOW);}
     if (strcmp(packet, "led1 off")==0){digitalWrite(LED_BUILTIN, HIGH);}
+    if (strcmp(packet, "Blink")==0){blink();}
   }
-  delay(5);time(nullptr);
+  delay(5);
+}
+
+void envoiHub(const char* message){
+  udp.beginPacket("192.168.4.1", 4210); //IP Broadcast adress - to send packet to everyone
+  udp.print(message);
+  udp.endPacket();
+}
+
+void blink(){
+  digitalWrite(LED_BUILTIN, LOW);
+  delay(500);
+
+  digitalWrite(LED_BUILTIN, HIGH);
 }
