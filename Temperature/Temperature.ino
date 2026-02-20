@@ -5,7 +5,7 @@ const char* ssid = "Arduino_AP";
 const char* password = "12345678";
 WiFiUDP udp;
 char packet[255];
-char* id = "TJ";
+const char* id = "TJ";
 
 unsigned long deltaTime;
 bool sended = false;
@@ -29,7 +29,10 @@ void setup(){
   udp.begin(4210);
   delay(500);
 
-  envoi(strcat("Hello ", id));
+  char msg[20];
+  strcpy(msg, "Hello ");
+  strcat(msg, id);
+  envoi(msg);
   bool ok=false;
   while(!ok){
     int len = udp.parsePacket();
@@ -43,7 +46,8 @@ void setup(){
         ok = true;
       }
     }
-    Serial.print(deltaTime);Serial.print(" -> ");Serial.println(deltaTime+millis());
+    Serial.print(deltaTime);Serial.print(" ; ");Serial.println(deltaTime+millis());
+    delay(50);
   }
   delay(5);
  // ESP.deepSleep(10e6);
@@ -58,11 +62,15 @@ void loop() {
     //if (strcmp(packet, "led1 on")==0){digitalWrite(LED_BUILTIN, LOW);}
     if (strncmp(packet, "TIME: ", 6)==0){unsigned long heure = strtoul(packet + 6, NULL, 10);deltaTime = heure - millis();}
   }
-  if (0 < deltaTime+millis() % 20000 < 2000){
+  if ((deltaTime+millis())%20000 < 2000){
     if (!sended){
+      Serial.println("Sending");
       char t[4];
       ultoa(temp, t, 10);
-      envoi(strcat(id, t));
+      char msg[10];
+      strcpy(msg, id);
+      strcat(msg, t);
+      envoi(msg);
     }
     sended = true;
   }

@@ -20,7 +20,7 @@ void setup() {
 
   udp.begin(4210);
   digitalWrite(LED_BUILTIN, HIGH);
-  Serial.println("Hello");
+  Serial.println("HelloWorld");
 
     bool ok = false;
   while(!ok){
@@ -37,7 +37,11 @@ void setup() {
   delay(500);
   char t[12];
   ultoa(millis(),t,10);
-  envoi(strcat("TIME: ",t));
+    char msg[255];
+    strcpy(msg, "TIME: ");
+    strcat(msg, t);
+    envoi(msg);
+ // envoi(strcat("TIME: ",t));
 }
 
 void loop() {
@@ -45,13 +49,24 @@ void loop() {
   if (len) {
     udp.read(packet, 255);
     packet[len] = 0;
-    Serial.println(packet);
+    Serial.print("P: ");Serial.println(packet);
     if (strncmp(packet, "T", 1)==0){
       if (strncmp(packet+1, "J", 1)==0){
         unsigned long temp = strtoul(packet + 2, NULL, 10);
-        Serial.print(temp);
+        Serial.print("t: ");Serial.println(temp);
       }
     }
+    if (strncmp(packet, "Hello", 5)==0){
+      Serial.println("reçu");
+      delay(500);
+      char t[12];
+      ultoa(millis(),t,10);
+        char msg[255];
+        strcpy(msg, "TIME: ");
+        strcat(msg, t);
+        envoi(msg);
+      //envoi(strcat("TIME: ",t));
+      }
   }
 
   //blink();
