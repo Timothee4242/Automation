@@ -57,7 +57,7 @@ void loop() {
     Serial.print("P: ");Serial.println(packet);
     if (strncmp(packet, "TJ", 2)==0){float temp = atof(packet + 2);}
     if (strncmp(packet+3, "tmp", 3)==0){
-      float temp = atof(packet + 2);
+      float temp = atof(packet + 13);
       //Serial.print("temperature: ");Serial.println(temp);
       if (strncmp(packet+6, "SBB", 3)==0){
         t_sbb[0] = temp;
@@ -65,7 +65,7 @@ void loop() {
       }
     }
     if (strncmp(packet+3, "hum", 3)==0){
-      float hum = atof(packet + 2);
+      float hum = atof(packet + 13);
       //Serial.print("temperature: ");Serial.println(temp);
       if (strncmp(packet+6, "SBB", 3)==0){
         h_sbb[0] = hum;
