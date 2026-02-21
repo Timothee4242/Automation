@@ -1,19 +1,25 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
+//Temperature
+#include "DHT.h"
+#define DHTPIN D2
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
 const char* ssid = "Arduino_AP";
 const char* password = "12345678";
 WiFiUDP udp;
 char packet[255];
-const char* id = "TJ";
-
+const char* id = "SBB"; //salle de bain bas
 unsigned long deltaTime;
 bool sended = false;
-
-int temp = 20;
+float temp;
+float hum;
 
 void setup(){
   pinMode(LED_BUILTIN, OUTPUT);
+  dht.begin(); //initie le capteur de temperature
   Serial.begin(115200);
   Serial.println("Hello");
   WiFi.begin(ssid, password);
@@ -55,6 +61,7 @@ void setup(){
 
 void loop() {
   int len = udp.parsePacket();
+  char msg[255];
   if (len) {
     udp.read(packet, 255);
     packet[len] = 0;
@@ -65,11 +72,13 @@ void loop() {
   if ((deltaTime+millis())%20000 < 2000){
     if (!sended){
       Serial.println("Sending");
-      char t[4];
-      ultoa(temp, t, 10);
-      char msg[10];
-      strcpy(msg, id);
-      strcat(msg, t);
+      temp=dht.readTemperature();
+      hum=dht.readHumidity();
+      Serial.println("Temperature = " + String(temp)+" °C");
+      Serial.println("Humidite = " + String(hum)+" %");
+      creemsg(msg,"tmpSBB----",temp);
+      envoi(msg);
+      creemsg(msg,"humSBB----",hum);
       envoi(msg);
     }
     sended = true;
@@ -83,6 +92,13 @@ void envoiHub(const char* message){
   udp.print(message);
   udp.endPacket();
 }
+void creemsg(char *dest, const char* nom,float data){
+  char dat[4]; //data
+  dtostrf(data, 0, 2, dat); 
+  strcpy(dest, id);
+  strcat(dest, nom);
+  strcat(dest, dat);
+}
 void envoi(const char* message){
   udp.beginPacket("192.168.4.255", 4210); //IP Broadcast adress - to send packet to everyone
   udp.print(message);
@@ -92,6 +108,5 @@ void envoi(const char* message){
 void blink(){
   digitalWrite(LED_BUILTIN, LOW);
   delay(500);
-
   digitalWrite(LED_BUILTIN, HIGH);
 }
