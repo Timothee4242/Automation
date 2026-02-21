@@ -9,6 +9,11 @@ WiFiUDP udp;
 const char* ssid = "Arduino_AP";
 const char* password = "12345678";
 char packet[255];
+
+/////////Gestion des informations////////////
+float t_sbb[1440]; //1440: minutes in one day
+float h_sbb[1440];
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -50,10 +55,21 @@ void loop() {
     udp.read(packet, 255);
     packet[len] = 0;
     Serial.print("P: ");Serial.println(packet);
-    if (strncmp(packet, "T", 1)==0){
-      if (strncmp(packet+1, "J", 1)==0){
-        unsigned long temp = strtoul(packet + 2, NULL, 10);
-        Serial.print("t: ");Serial.println(temp);
+    if (strncmp(packet, "TJ", 2)==0){float temp = atof(packet + 2);}
+    if (strncmp(packet+3, "tmp", 3)==0){
+      float temp = atof(packet + 2);
+      //Serial.print("temperature: ");Serial.println(temp);
+      if (strncmp(packet+6, "SBB", 3)==0){
+        t_sbb[0] = temp;
+        Serial.print("temperature sbb: ");Serial.println(temp);
+      }
+    }
+    if (strncmp(packet+3, "hum", 3)==0){
+      float hum = atof(packet + 2);
+      //Serial.print("temperature: ");Serial.println(temp);
+      if (strncmp(packet+6, "SBB", 3)==0){
+        h_sbb[0] = hum;
+        Serial.print("humidité sbb: ");Serial.println(hum);
       }
     }
     if (strncmp(packet, "Hello", 5)==0){
@@ -68,6 +84,7 @@ void loop() {
       //envoi(strcat("TIME: ",t));
       }
   }
+  //Serial.print("Time: ");Serial.println(millis());
 
   //blink();
 
