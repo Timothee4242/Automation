@@ -1,18 +1,36 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <user_interface.h>
-
+bool verbos=true;
 
 WiFiUDP udp;
-
 
 const char* ssid = "Arduino_AP";
 const char* password = "12345678";
 char packet[255];
 
+///////// WiFi maison ////////////
+#include <ESP8266HTTPClient.h>
+#include <EEPROM.h>
+#define EEPROM_SIZE 96
+#define DAILY_SLEEP 86400e6
+#define RETRY_SLEEP 3600e6
+const char* serverName = "http://10.0.4.45:5000/data";
+struct WifiData {
+  char ssid[32];
+  char pass[64];
+};
+WifiData wifiData;
+#define MAX_LOG 100 
+String logLines[MAX_LOG]; // tableau pour stocker les lignes
+int nbLog = 0;            // compteur de lignes écrites
+
 /////////Gestion des informations////////////
 float t_sbb[1440]; //1440: minutes in one day
 float h_sbb[1440];
+int temps_fin=0;
+int temps=0;
+char* statut="-RELAI_LOW";
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
@@ -72,6 +90,19 @@ void loop() {
         Serial.print("humidité sbb: ");Serial.println(hum);
       }
     }
+    temps=int(millis()/1000);Serial.print("Temps:");Serial.println(temps);
+    if (h_sbb[0]>60){
+      temps_fin=temps+10; //
+      if(verbos){Serial.println("H>60");}
+    }
+    if (temps_fin>temps and strncmp(statut, "-RELAI_HIGH", 10)!=0){
+      envoi("HUB:VMC-RELAI_HIGH");
+      strcpy(statut,"-RELAI_HIGH");
+    }
+    if (temps_fin<=temps and strncmp(statut, "-RELAI_LOW", 9)!=0){
+      envoi("HUB:VMC-RELAI_LOW");   
+      strcpy(statut,"-RELAI_LOW");  
+    }
     if (strncmp(packet, "Hello", 5)==0){
       Serial.println("reçu");
       delay(500);
@@ -102,6 +133,12 @@ void envoi(const char* message){
   udp.beginPacket("192.168.4.255", 4210); //IP Broadcast adress - to send packet to everyone
   udp.print(message);
   udp.endPacket();
+  if (verbos){
+  Serial.print("envoi:");
+  Serial.println(message);
+  String msg=String(message); 
+  addLog(msg);
+  }
 }
 
 void blink(){
@@ -109,6 +146,54 @@ void blink(){
   delay(500);
 
   digitalWrite(LED_BUILTIN, HIGH);
+}
+
+void envoi_synthese(){
+  EEPROM.begin(EEPROM_SIZE);
+  EEPROM.get(0, wifiData);
+  WiFi.begin(wifiData.ssid, wifiData.pass);
+  int timeout = 0;
+  while (WiFi.status() != WL_CONNECTED && timeout < 30) {
+    Serial.print("Wifi maison non connecte, try ");
+    Serial.println(timeout);
+    delay(500);
+    timeout++;
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("# Wifi maison non connecte, nouvel essai dans une heure#");
+    ESP.deepSleep(RETRY_SLEEP);
+  }
+  Serial.println(WiFi.localIP());
+  Serial.println("### logLines ###");
+  Serial.println(logLines);
+  Serial.println("################");
+  WiFiClient client;
+  HTTPClient http;
+  http.begin(client, serverName);
+  http.addHeader("Content-Type", "application/json");
+  //String json = "[12,45,78,90]";
+  int httpCode = http.POST(logLines);
+  http.end();
+  Serial.print("httpCode: ");
+  Serial.print(httpCode);
+  if (httpCode > 0) {
+    Serial.println("  Je retourne dormir pour la journee");
+    ESP.deepSleep(DAILY_SLEEP);
+  } else {
+    Serial.println("  Je reesaie dans une heure");
+    ESP.deepSleep(RETRY_SLEEP);
+  }
+}
+void addLog(const String &message) {
+  if (nbLog < MAX_LOG) {
+    logLines[nbLog++] = message;  // ajouter au tableau
+  } else {
+    // si plein, décaler tout et ajouter à la fin
+    for (int i = 1; i < MAX_LOG; i++) {
+      logLines[i - 1] = logLines[i];
+    }
+    logLines[MAX_LOG - 1] = message;
+  }
 }
 /*
 IPAddress afficherClients[10]() {

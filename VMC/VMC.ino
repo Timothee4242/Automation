@@ -1,18 +1,17 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
+bool verbos=true;
 
-//Temperature
-#include "DHT.h"
-#define DHTPIN D2
-#define DHTTYPE DHT22
-DHT dht(DHTPIN, DHTTYPE);
+//Relai
+#define RELAIPIN D1
 
 //Wifi
 const char* ssid = "Arduino_AP";
 const char* password = "12345678";
 WiFiUDP udp;
 char packet[255];
-const char* id = "SBB"; //salle de bain bas
+const char* id = "VMC"; //salle de bain bas
+char* etat;
 unsigned long deltaTime;
 bool sended = false;
 float temp;
@@ -20,7 +19,9 @@ float hum;
 
 void setup(){
   pinMode(LED_BUILTIN, OUTPUT); 
-  dht.begin(); //initie le capteur de temperature
+  pinMode(RELAIPIN,OUTPUT);
+  digitalWrite(RELAIPIN, LOW);
+  etat="Low";
   Serial.begin(115200);
   Serial.println("Hello");
   WiFi.begin(ssid, password);
@@ -54,6 +55,7 @@ void setup(){
       }
     }
     Serial.print(deltaTime);Serial.print(" ; ");Serial.println(deltaTime+millis());
+    Serial.println("Temps recale");
     delay(50);
   }
 
@@ -61,36 +63,26 @@ void setup(){
 
 void loop() {
   
-  //Recale le temps
+  //Traite les msg entrant
   int len = udp.parsePacket();
   char msg[255];
   if (len) {
     udp.read(packet, 255);
     packet[len] = 0;
     Serial.print("P: ");Serial.println(packet);
-    //if (strcmp(packet, "led1 on")==0){digitalWrite(LED_BUILTIN, LOW);}
     if (strncmp(packet, "TIME: ", 6)==0){unsigned long heure = strtoul(packet + 6, NULL, 10);deltaTime = heure - millis();}
-  }
-  
-  // Toutes les 20 secondes, envoi un message et hiberne
-  if ((deltaTime+millis())%8000 < 2000){
-    if (!sended){
-      Serial.println("Sending");
-      temp=dht.readTemperature();
-      hum=dht.readHumidity();
-      Serial.println("Temperature = " + String(temp)+" °C");
-      Serial.println("Humidite = " + String(hum)+" %");
-      creemsg(msg,"tmpSBB----",temp);
-      envoi(msg);
-      creemsg(msg,"humSBB----",hum);
-      envoi(msg);
+    if (strncmp(packet, "HUB:VMC", 7)==0){ 
+      if (strncmp(packet+7, "-RELAI_HIGH", 11)==0){
+        digitalWrite(RELAIPIN, HIGH);
+        etat="High";
+        if (verbos){Serial.print("etat HIGH");}}
+      if (strncmp(packet+7, "-RELAI_LOW", 10)==0){
+        digitalWrite(RELAIPIN, LOW);
+        etat="Low";
+        if (verbos){Serial.print("etat LOW");}}       
     }
-    sended = true;
-    //ESP.deepSleep(5e6); // 10s
   }
-  else{sended = false;}
-  
-  delay(5);
+  //ESP.deepSleep(5e6); // 10s
 }
 
 void envoiHub(const char* message){
